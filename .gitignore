@@ -1,0 +1,21 @@
+# PyCharm
+.idea/
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual env
+.venv/
+env/
+venv/
+
+# Poetry
+poetry.lock
+
+# VSCode
+.vscode/
+
+# MacOS
+.DS_Store
