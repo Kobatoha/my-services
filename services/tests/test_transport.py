@@ -23,22 +23,20 @@ async def test_get_request_returns_json():
 
 @pytest.mark.asyncio
 async def test_get_success(monkeypatch):
-    """Проверяем, что GET возвращает TransportResponse с корректными данными"""
-
-    # Создаём поддельный ответ aiohttp
     mock_response = AsyncMock()
     mock_response.status = 200
-    mock_response.text.return_value = "OK"
-    mock_response.json.return_value = {"key": "value"}
+    mock_response.text = AsyncMock(return_value="OK")
+    mock_response.json = AsyncMock(return_value={"key": "value"})
+    mock_response.read = AsyncMock(return_value=b"OK")
     mock_response.headers = {"Content-Type": "application/json"}
     mock_response.cookies = {}
-    mock_response.read.return_value = b"OK"
 
-    # Мокаем метод request() у ClientSession
+    mock_response.__aenter__.return_value = mock_response
+    mock_response.__aexit__.return_value = None
+
     session_mock = AsyncMock()
-    session_mock.request = AsyncMock(return_value=mock_response)
+    session_mock.request.return_value = mock_response
 
-    # Подменяем _get_session у TransportClient, чтобы он вернул наш session_mock
     client = TransportClient()
     monkeypatch.setattr(client, "_get_session", AsyncMock(return_value=session_mock))
 
@@ -52,8 +50,6 @@ async def test_get_success(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_post_success(monkeypatch):
-    """Проверяем POST запрос"""
-
     mock_response = AsyncMock()
     mock_response.status = 201
     mock_response.text.return_value = "Created"
@@ -62,8 +58,11 @@ async def test_post_success(monkeypatch):
     mock_response.cookies = {}
     mock_response.read.return_value = b"Created"
 
+    mock_response.__aenter__.return_value = mock_response
+    mock_response.__aexit__.return_value = None
+
     session_mock = AsyncMock()
-    session_mock.request = AsyncMock(return_value=mock_response)
+    session_mock.request.return_value = mock_response
 
     client = TransportClient()
     monkeypatch.setattr(client, "_get_session", AsyncMock(return_value=session_mock))
@@ -77,8 +76,6 @@ async def test_post_success(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_raise_for_status():
-    """Проверяем, что HTTPStatusError выбрасывается при статусе != 2xx"""
-
     resp = TransportResponse(
         url="http://fake-url.com",
         status=500,
@@ -112,5 +109,7 @@ async def test_context_manager(monkeypatch):
 
     async with client as c:
         assert c is client
+
+    session_mock.close = AsyncMock()
 
     session_mock.close.assert_awaited()
