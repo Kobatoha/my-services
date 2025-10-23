@@ -1,8 +1,7 @@
 import pytest
 
 from aioresponses import aioresponses
-from unittest.mock import AsyncMock, patch
-from aiohttp import ClientError
+from unittest.mock import AsyncMock, MagicMock
 
 from services.transport_client import TransportClient, TransportResponse, HTTPStatusError
 
@@ -27,14 +26,14 @@ async def test_get_success(monkeypatch):
     mock_response.status = 200
     mock_response.text = AsyncMock(return_value="OK")
     mock_response.json = AsyncMock(return_value={"key": "value"})
-    mock_response.read = AsyncMock(return_value=b"OK")
     mock_response.headers = {"Content-Type": "application/json"}
     mock_response.cookies = {}
+    mock_response.read = AsyncMock(return_value=b"OK")
 
     mock_response.__aenter__.return_value = mock_response
     mock_response.__aexit__.return_value = None
 
-    session_mock = AsyncMock()
+    session_mock = MagicMock()  # тут MagicMock, а не AsyncMock
     session_mock.request.return_value = mock_response
 
     client = TransportClient()
@@ -52,16 +51,16 @@ async def test_get_success(monkeypatch):
 async def test_post_success(monkeypatch):
     mock_response = AsyncMock()
     mock_response.status = 201
-    mock_response.text.return_value = "Created"
-    mock_response.json.return_value = {"id": 123}
+    mock_response.text = AsyncMock(return_value="Created")
+    mock_response.json = AsyncMock(return_value={"id": 123})
     mock_response.headers = {}
     mock_response.cookies = {}
-    mock_response.read.return_value = b"Created"
+    mock_response.read = AsyncMock(return_value=b"Created")
 
     mock_response.__aenter__.return_value = mock_response
     mock_response.__aexit__.return_value = None
 
-    session_mock = AsyncMock()
+    session_mock = MagicMock()  # тут MagicMock, а не AsyncMock
     session_mock.request.return_value = mock_response
 
     client = TransportClient()
@@ -105,11 +104,15 @@ async def test_close_session():
 async def test_context_manager(monkeypatch):
     client = TransportClient()
     session_mock = AsyncMock()
-    monkeypatch.setattr(client, "_get_session", AsyncMock(return_value=session_mock))
+    session_mock.close = AsyncMock()
+
+    async def fake_get_session():
+        client.session = session_mock
+        return session_mock
+
+    monkeypatch.setattr(client, "_get_session", fake_get_session)
 
     async with client as c:
         assert c is client
-
-    session_mock.close = AsyncMock()
 
     session_mock.close.assert_awaited()
